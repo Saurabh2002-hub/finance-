@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InvestMetric Calculator Suite</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F8FAFC;
+      --bg-card: #FFFFFF;
+      --bg-card2: #F1F5F9;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --text-muted: #475569;
+      --text-dim: #94A3B8;
+      --gold: #B48600;
+      --gold-light: #D4A853;
+      --green: #059669;
+      --red: #DC2626;
+      --blue: #2563EB;
+      --cyan: #0891B2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); }
+    body { padding: 32px; }
+    .page-shell { max-width: 980px; margin: 0 auto; }
+    .hero { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+    .hero h1 { font-family: 'Playfair Display', serif; font-size: 36px; line-height: 1.05; margin-bottom: 10px; }
+    .hero p { color: var(--text-muted); max-width: 660px; line-height: 1.8; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 18px 50px rgba(15,23,42,.06); overflow: hidden; }
+    .card-inner { padding: 28px; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .section-title h2 { font-size: 22px; letter-spacing: -0.3px; }
+    .selector { display: flex; gap: 10px; flex-wrap: wrap; }
+    .selector button { border: 1px solid var(--border); background: var(--bg-card); color: var(--text); padding: 10px 16px; border-radius: 12px; cursor: pointer; transition: all .2s; font-weight: 600; }
+    .selector button.active, .selector button:hover { background: var(--gold); color: #fff; border-color: var(--gold); }
+    .calculator-shell { display: grid; gap: 22px; }
+    .calculator-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .calculator-header h3 { font-size: 20px; }
+    .calculator-note { color: var(--text-dim); font-size: 14px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 16px; }
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    .form-row label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+    .form-row input { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; font-size: 15px; color: var(--text); background: var(--bg-card2); }
+    .form-row input[type="number"]::-webkit-inner-spin-button, .form-row input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+    .actions button { background: var(--blue); color: #fff; border: none; border-radius: 12px; padding: 12px 20px; font-weight: 700; cursor: pointer; transition: background .2s; }
+    .actions button:hover { background: #1d4ed8; }
+    .results-card { background: var(--bg-card2); border: 1px solid var(--border); border-radius: 16px; padding: 22px; }
+    .result-item { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .result-item:last-child { border-bottom: none; }
+    .result-label { color: var(--text-muted); }
+    .result-value { font-weight: 700; color: var(--text); }
+    .value-positive { color: var(--green); }
+    .value-negative { color: var(--red); }
+    .formula { font-family: 'IBM Plex Mono', monospace; background: rgba(15,23,42,.04); padding: 10px 12px; border-radius: 10px; margin-top: 10px; color: var(--text-dim); }
+
+    @media (max-width: 720px) {
+      .hero { flex-direction: column; }
+      .form-grid { grid-template-columns: 1fr; }
+      .section-title { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <div class="hero">
+      <div>
+        <h1>InvestMetric Calculator Suite</h1>
+        <p>Select the calculator you want to use and enter your values. The page renders each calculator dynamically inside a single container using a shared factory and consistent layout.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-inner">
+        <div class="section-title">
+          <h2>Choose a Calculator</h2>
+          <div class="selector" id="calculator-selector"></div>
+        </div>
+
+        <div class="calculator-shell" id="calculator-shell"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const calculatorDefinitions = {
+      sip: {
+        key: 'sip',
+        title: 'SIP Calculator',
+        note: 'Compute the maturity value of a monthly SIP based on expected annual return.',
+        inputs: [
+          { id: 'monthly', label: 'Monthly investment', placeholder: 'e.g. 10000', type: 'number', suffix: '₹' },
+          { id: 'rate', label: 'Expected annual return', placeholder: 'e.g. 12', type: 'number', suffix: '%' },
+          { id: 'years', label: 'Investment horizon', placeholder: 'e.g. 10', type: 'number', suffix: 'yrs' },
+        ],
+        compute(values) {
+          const P = Number(values.monthly) || 0;
+          const annual = Number(values.rate) / 100;
+          const years = Number(values.years) || 0;
+          const n = years * 12;
+          const r = annual / 12;
+          const futureValue = P * ((Math.pow(1 + r, n) - 1) / r) * (1 + r);
+          const invested = P * n;
+          const profit = futureValue - invested;
+          return {
+            'Total invested': invested,
+            'Maturity value': futureValue,
+            'Estimated gain': profit,
+            'Annual return': `${(annual * 100).toFixed(2)}%`,
+          };
+        },
+        formula: 'FV = P × [(1 + r)^n − 1] / r × (1 + r)',
+      },
+      emi: {
+        key: 'emi',
+        title: 'EMI Calculator',
+        note: 'Calculate the monthly EMI payment for a loan using the principal, rate and term.',
+        inputs: [
+          { id: 'principal', label: 'Loan amount', placeholder: 'e.g. 1000000', type: 'number', suffix: '₹' },
+          { id: 'rate', label: 'Annual interest rate', placeholder: 'e.g. 8.5', type: 'number', suffix: '%' },
+          { id: 'years', label: 'Loan tenure', placeholder: 'e.g. 15', type: 'number', suffix: 'yrs' },
+        ],
+        compute(values) {
+          const P = Number(values.principal) || 0;
+          const annual = Number(values.rate) / 100;
+          const years = Number(values.years) || 0;
+          const n = years * 12;
+          const r = annual / 12;
+          const factor = Math.pow(1 + r, n);
+          const emi = P * r * factor / (factor - 1) || 0;
+          const total = emi * n;
+          const interest = total - P;
+          return {
+            'Monthly EMI': emi,
+            'Total payment': total,
+            'Total interest': interest,
+            'Loan amount': P,
+          };
+        },
+        formula: 'EMI = P × r × (1+r)^n / [(1+r)^n − 1]',
+      },
+      lumpsum: {
+        key: 'lumpsum',
+        title: 'Lumpsum Growth Calculator',
+        note: 'Estimate the future value of a one-time investment using compound growth.',
+        inputs: [
+          { id: 'principal', label: 'Lumpsum investment', placeholder: 'e.g. 500000', type: 'number', suffix: '₹' },
+          { id: 'rate', label: 'Expected annual return', placeholder: 'e.g. 10', type: 'number', suffix: '%' },
+          { id: 'years', label: 'Holding period', placeholder: 'e.g. 7', type: 'number', suffix: 'yrs' },
+        ],
+        compute(values) {
+          const P = Number(values.principal) || 0;
+          const annual = Number(values.rate) / 100;
+          const years = Number(values.years) || 0;
+          const futureValue = P * Math.pow(1 + annual, years);
+          const gain = futureValue - P;
+          return {
+            'Present value': P,
+            'Future value': futureValue,
+            'Total gain': gain,
+            'Annual return': `${(annual * 100).toFixed(2)}%`,
+          };
+        },
+        formula: 'FV = P × (1 + r)^n',
+      },
+      inflation: {
+        key: 'inflation',
+        title: 'Inflation Calculator',
+        note: 'See how inflation erodes purchasing power over time and what nominal value is required later.',
+        inputs: [
+          { id: 'current', label: 'Current amount', placeholder: 'e.g. 1000000', type: 'number', suffix: '₹' },
+          { id: 'rate', label: 'Inflation rate', placeholder: 'e.g. 6', type: 'number', suffix: '%' },
+          { id: 'years', label: 'Period', placeholder: 'e.g. 10', type: 'number', suffix: 'yrs' },
+        ],
+        compute(values) {
+          const current = Number(values.current) || 0;
+          const annual = Number(values.rate) / 100;
+          const years = Number(values.years) || 0;
+          const inflated = current * Math.pow(1 + annual, years);
+          const purchasingPower = current / Math.pow(1 + annual, years);
+          return {
+            'Current value': current,
+            'Future value': inflated,
+            'Real purchasing power': purchasingPower,
+            'Inflation rate': `${(annual * 100).toFixed(2)}%`,
+          };
+        },
+        formula: 'Future value = Current value × (1 + i)^n',
+      },
+    };
+
+    function CalculatorFactory(key) {
+      const definition = calculatorDefinitions[key];
+      if (!definition) {
+        throw new Error(`Calculator '${key}' is not defined.`);
+      }
+      return {
+        render(container) {
+          container.innerHTML = '';
+
+          const header = document.createElement('div');
+          header.className = 'calculator-header';
+          header.innerHTML = `
+            <div>
+              <h3>${definition.title}</h3>
+              <p class="calculator-note">${definition.note}</p>
+            </div>
+          `;
+
+          const form = document.createElement('div');
+          form.className = 'form-grid';
+          const values = {};
+
+          definition.inputs.forEach(field => {
+            const row = document.createElement('div');
+            row.className = 'form-row';
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+            const input = document.createElement('input');
+            input.type = field.type;
+            input.id = field.id;
+            input.placeholder = field.placeholder;
+            input.value = '';
+            input.addEventListener('input', () => {
+              values[field.id] = Number(input.value) || 0;
+              renderResults();
+            });
+            row.append(label, input);
+            form.appendChild(row);
+          });
+
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+          const reset = document.createElement('button');
+          reset.type = 'button';
+          reset.textContent = 'Reset values';
+          reset.addEventListener('click', () => {
+            form.querySelectorAll('input').forEach(input => input.value = '');
+            Object.keys(values).forEach(key => values[key] = 0);
+            renderResults();
+          });
+          actions.appendChild(reset);
+
+          const resultCard = document.createElement('div');
+          resultCard.className = 'results-card';
+          resultCard.innerHTML = '<div class="result-item"><div class="result-label">Enter values to see results</div><div></div></div>';
+
+          function renderResults() {
+            const computed = definition.compute(values);
+            resultCard.innerHTML = Object.entries(computed).map(([label, value]) => {
+              const formatted = typeof value === 'number' ? value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : value;
+              const classes = label.toLowerCase().includes('gain') || label.toLowerCase().includes('value') || label.toLowerCase().includes('emi') ? 'result-value' : 'result-value';
+              return `
+                <div class="result-item">
+                  <div class="result-label">${label}</div>
+                  <div class="${classes}">${formatted}</div>
+                </div>`;
+            }).join('') + `
+              <div class="formula">${definition.formula}</div>`;
+          }
+
+          renderResults();
+
+          container.append(header, form, actions, resultCard);
+        }
+      };
+    }
+
+    function renderSelector() {
+      const selector = document.getElementById('calculator-selector');
+      selector.innerHTML = '';
+      Object.values(calculatorDefinitions).forEach(def => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = def.title;
+        button.addEventListener('click', () => selectCalculator(def.key));
+        selector.appendChild(button);
+      });
+    }
+
+    function selectCalculator(key) {
+      const buttons = document.querySelectorAll('#calculator-selector button');
+      buttons.forEach(btn => btn.classList.toggle('active', btn.textContent === calculatorDefinitions[key].title));
+      const shell = document.getElementById('calculator-shell');
+      CalculatorFactory(key).render(shell);
+    }
+
+    renderSelector();
+    selectCalculator('sip');
+  </script>
+</body>
+</html>
